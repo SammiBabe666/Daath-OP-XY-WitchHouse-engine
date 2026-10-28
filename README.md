@@ -5,8 +5,8 @@ A witch house bass engine for the OP-XY, built on the
 
 Five drifting saws over a sine an octave below, pushed through an asymmetric
 drive, sunk under a pitch-tracking lowpass, rotted by sample-and-hold and bit
-loss, and warped like slowed tape. The screen is an open grimoire that every
-knob rewrites.
+loss, and warped like slowed tape. The screen is a monochrome grimoire that
+every knob rewrites.
 
 ![Daath's screen](media/screen.png)
 
@@ -45,9 +45,9 @@ Six presets ship with the engine and install with the builder.
 | Control | On the page |
 | --- | --- |
 | Swarm | Two ghost pentagrams split from the sigil and turn apart by up to 24 degrees |
-| Grave | The moon waxes from a sliver to full, turns to a blood moon past 75 and sinks |
+| Grave | The moon waxes from a sliver to full, turns to a black sun past 75 and sinks |
 | Hex | The candles flare taller and the summoning ring grows eight flames |
-| Murk | The parchment darkens to black; the runes then glow red |
+| Murk | The pages darken to black; the runes and sigil then glow white |
 | Rot | Up to 55% of the runes crumble away, the rest shake loose, and the pages tear |
 | Wow | While a note is held, the sigil sways and the rune lines waver |
 

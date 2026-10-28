@@ -1,9 +1,9 @@
 // Daath's screen: an open grimoire. Each control rewrites the book.
 //
 //   Swarm  ghost pentagrams split from the sigil and turn apart
-//   Grave  the moon on the left page waxes from a sliver to a full, then blood, moon and sinks
+//   Grave  the moon on the left page waxes from a sliver to full, turns to a black sun and sinks
 //   Hex    the candles flare and the summoning ring grows flames
-//   Murk   the parchment darkens until the runes glow red on black pages
+//   Murk   the parchment darkens until the runes glow white on black pages
 //   Rot    runes crumble and fall out, the page edges tear
 //   Wow    while a note is held the sigil sways and the rune lines waver
 //
@@ -27,9 +27,11 @@ enum : u32 {
     rune_first = 23, rune_columns = 8, rune_rows = 5,
 };
 
+// Monochrome palette entries (panel.svg.fragment): page tones 1..6, inks, the
+// sigil's four tones from shadow to white, two flame tones and the moon.
 enum : u32 {
     ink_black = 0, page_darkest = 1, parchment = 6, ink = 7, faded_ink = 8,
-    blood_dim = 9, blood = 10, blood_bright = 11, glow = 12, flame = 13, flame_core = 14, bone = 15,
+    shadow = 9, sigil = 10, bright = 11, glow = 12, flame = 13, flame_core = 14, bone = 15,
 };
 
 const i32 expired = 4096;                       // 4 s, Q10: no pulse
@@ -165,7 +167,7 @@ inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& 
     const u32 page_shade = static_cast<u32>(clamp(6 - (murk * 6 >> 10), page_darkest, parchment));
     place(frame, page_left, 0, 0, unit, page_shade, fill_and_stroke);
     place(frame, page_right, 0, 0, unit, page_shade, fill_and_stroke);
-    const u32 rune_shade = page_shade >= 4 ? ink : page_shade >= 2 ? faded_ink : blood_bright;
+    const u32 rune_shade = page_shade >= 4 ? ink : bright;
 
     // Rot: tears open along the page edges, one per fifth of the turn.
     for (u32 t = 0; t < tear_count; ++t) {
@@ -191,23 +193,24 @@ inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& 
         }
     }
 
-    // Grave: the moon waxes, reddens past three quarters and sinks.
+    // Grave: the moon waxes, turns to a black sun past three quarters and sinks.
+    // On pages too dark to show a black sun it stays pale.
     draw_moon(frame.paths[moon_node], grave);
-    place(frame, moon_node, moon_x, moon_y + grave * 8, unit, grave > 768 ? blood_bright : bone, stroke);
+    place(frame, moon_node, moon_x, moon_y + grave * 8, unit, grave > 768 && page_shade >= 4 ? ink : bone, stroke);
 
     // The sigil: halo on each note, the ring and pentagram turn while held.
     const i32 turn_tenths = (still ? 0 : state.angle) + sway;
     if (pulse > 0) {
-        place(frame, halo, sigil_x, sigil_y, 700 + ((1024 - pulse) * 560 >> 10), blood_dim, fill_and_stroke);
+        place(frame, halo, sigil_x, sigil_y, 700 + ((1024 - pulse) * 560 >> 10), shadow, fill_and_stroke);
     } else {
         hide(frame, halo);
     }
     draw_ring(frame.paths[ring_node], hex, pulse);
-    place(frame, ring_node, sigil_x, sigil_y, unit, pulse > 512 ? glow : hex > 512 ? blood_bright : blood, stroke);
+    place(frame, ring_node, sigil_x, sigil_y, unit, pulse > 512 ? glow : hex > 512 || page_shade < 4 ? bright : sigil, stroke);
     turn(frame, ring_node, rotation(-turn_tenths / 2));
-    place(frame, inner_circle, sigil_x, sigil_y, unit + (pulse >> 4), pulse > 256 ? blood_bright : blood, stroke);
+    place(frame, inner_circle, sigil_x, sigil_y, unit + (pulse >> 4), pulse > 256 || page_shade < 4 ? bright : sigil, stroke);
     place(frame, star_centre, sigil_x, sigil_y, unit,
-          pulse > 512 ? glow : pulse > 128 ? blood_bright : blood, stroke);
+          pulse > 512 ? glow : pulse > 128 || page_shade < 4 ? bright : sigil, stroke);
     turn(frame, star_centre, rotation(turn_tenths));
 
     // Swarm: two ghost pentagrams part from the sigil by up to 24 degrees.
@@ -217,7 +220,7 @@ inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& 
     } else {
         const i32 apart = swarm * 240 >> 10;
         const i32 grow = unit + (swarm * 90 >> 10);
-        const u32 shade = swarm > 512 ? blood : blood_dim;
+        const u32 shade = page_shade < 4 ? faded_ink : swarm > 512 ? sigil : shadow;
         place(frame, ghost_a, sigil_x, sigil_y, grow, shade, stroke);
         turn(frame, ghost_a, rotation(turn_tenths + apart));
         place(frame, ghost_b, sigil_x, sigil_y, grow, shade, stroke);
