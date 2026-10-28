@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "sdk": "1.4",
+  "kind": "synth",
+  "description": "Daath: a witch house bass. Drifting saw swarm over a grave sub, hexed drive, murk, rot and tape wow, drawn as a living grimoire.",
+  "icon": "M23 6L31 30L10 15H36L15 30Z M23 42a20 20 0 1 0 0-40a20 20 0 1 0 0 40",
+  "identity": {
+    "engine": 48,
+    "page": 96
+  },
+  "presets": "presets"
+}
