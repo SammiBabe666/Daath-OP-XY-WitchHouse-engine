@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 env:
-  # The SDK commit Daath is validated against (OS 1.2.1, SDK 1.4).
-  SDK_REF: 1474100079395a88560a62e064612c4a21c0f0a0
+  # The SDK commit Daath is validated against: staging at release 0.0.3 (OS 1.2.1, SDK 1.5).
+  SDK_REF: 4a8abf4ead97e870c79bc193dd4fd41265732ee7
 jobs:
   preview-and-tests:
     runs-on: ubuntu-latest

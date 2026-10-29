@@ -85,6 +85,18 @@ int main() {
                         "points changed without a new key");
     }
 
+    // A long hold: about 20 minutes of held notes with full Wow, past the point
+    // where the held clock times the sway rate would leave 32 bits.
+    input.reduced_motion = 0;
+    input.held_notes = 1;
+    input.elapsed = 102;
+    for (unsigned i = 0; i < 6; ++i) input.slots[i] = 0x7fffffff;
+    for (unsigned step = 0; step < 12000; ++step) {
+        display(state, input, frame);
+        require(opxy::draw::valid(frame), "invalid frame during a long hold");
+    }
+    check_outlines(frame);
+
     // Reduced motion: a held note and a new note leave the frame unchanged.
     input.reduced_motion = 1;
     input.held_notes = 1;
