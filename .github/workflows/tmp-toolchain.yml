@@ -1,0 +1,48 @@
+# Temporary: builds the SDK's pinned Linux Blackfin toolchain (docs/build.md,
+# "On Linux") and attaches it to a private draft release. Deleted after use.
+name: Temporary toolchain build
+on:
+  push:
+    branches: [tmp-toolchain-build]
+permissions:
+  contents: write
+env:
+  SDK_REF: 4a8abf4ead97e870c79bc193dd4fd41265732ee7
+  FORK_REF: e4408a15b9be6cd911283f103a1a3f69e9a6b8c0
+jobs:
+  toolchain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: etcetc000/open-xy
+          ref: ${{ env.SDK_REF }}
+          path: open-xy
+      - name: Build pinned toolchain
+        working-directory: open-xy
+        run: |
+          git init local/blackfin-plus-gnu
+          git -C local/blackfin-plus-gnu fetch --depth 1 https://github.com/deanm1278/blackfin-plus-gnu "$FORK_REF"
+          git -C local/blackfin-plus-gnu checkout FETCH_HEAD
+          mkdir local/toolchain-build
+          docker build -t open-xy-toolchain-linux - < tools/gcc/linux.Dockerfile
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$PWD":/opt/opxy-toolchain/open-xy:ro \
+            -v "$PWD/local/blackfin-plus-gnu":/opt/opxy-toolchain/fork \
+            -v "$PWD/local/toolchain-build":/opt/opxy-toolchain/out \
+            open-xy-toolchain-linux /opt/opxy-toolchain/open-xy/tools/gcc/build-linux.sh \
+            /opt/opxy-toolchain/fork /opt/opxy-toolchain/out/blackfin
+          mv local/toolchain-build/blackfin local/toolchain
+      - name: Check pins
+        working-directory: open-xy
+        run: python3 sdk.py doctor --toolchain local/toolchain/bin
+      - name: Attach to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tar -C open-xy/local -czf toolchain-linux-x86_64.tar.gz toolchain
+          sha256sum toolchain-linux-x86_64.tar.gz
+          gh release create tmp-toolchain --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+            --title "Temporary toolchain (delete)" --notes "Temporary build of the Open-XY pinned Linux toolchain." \
+            toolchain-linux-x86_64.tar.gz
