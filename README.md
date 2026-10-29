@@ -1,7 +1,8 @@
 # Daath
 
 A witch house bass engine for the OP-XY, built on the
-[Open-XY SDK](https://github.com/etcetc000/open-xy) (SDK 1.4, OS 1.2.1).
+[Open-XY SDK](https://github.com/etcetc000/open-xy) (OS 1.2.1, tested on SDK
+`staging` at release 0.0.3; the machine format is SDK 1.4).
 
 Five drifting saws over a sine an octave below, pushed through an asymmetric
 drive, sunk under a pitch-tracking lowpass, rotted by sample-and-hold and bit
@@ -104,6 +105,28 @@ floating point, no 64-bit arithmetic and no per-sample division.
 
 Oscillators run freely across notes, so legato and mono lines never click;
 the OP-XY's envelopes, filter, LFOs and FX shape everything after the engine.
+
+## Polyphony and CPU
+
+Daath plays **8 voices** at once (`voiceCapacity` 8). That matches stock's
+limit of 8 notes per track, so one track never steals from itself beyond its
+own voices. Voice memory is 88 bytes per voice, plus stock's one spare.
+
+CPU, from the SDK's host-timed estimate at Daath's heaviest setting (SDK
+commit `4a8abf4`, seven runs on a 2-core Xeon at 2.1 GHz, 29 October 2026):
+
+| Reading | Blackfin instructions per voice block |
+| --- | --- |
+| Median | about 17,300 |
+| Range | about 13,600 to 23,700 (timing noise) |
+| SDK aim | at most 15,000 |
+| For scale | 2op FM about 14,000, Macro Osc about 9,000 |
+
+This is an estimate from host timing, **not a measurement on the OP-XY**.
+Fewer voices limit how many run at once; they do not change the cost of each
+voice. The hardware readout from the SDK's
+[profiling guide](https://github.com/etcetc000/open-xy/blob/staging/docs/profiling.md)
+is still pending.
 
 ## Licence
 

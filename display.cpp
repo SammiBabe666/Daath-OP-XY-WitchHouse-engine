@@ -160,7 +160,8 @@ inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& 
     const i32 time = still ? 0 : state.held_time;
 
     // Wow: a slow sway of the sigil and a waver along the rune lines.
-    const i32 sway_phase = time * 2520 >> 10;                 // 0.7 Hz in tenths
+    // 0.7 Hz in tenths. Unsigned: time reaches 2^20, and 2^20 * 2520 needs 32 bits.
+    const i32 sway_phase = static_cast<i32>(static_cast<u32>(time) * 2520u >> 10);
     const i32 sway = still ? 0 : (wow * 80 >> 10) * sine(sway_phase) >> 10;
 
     // Murk: the parchment sinks from shade 6 to the darkest page.
