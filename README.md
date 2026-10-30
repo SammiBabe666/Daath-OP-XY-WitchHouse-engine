@@ -112,19 +112,25 @@ Daath plays **8 voices** at once (`voiceCapacity` 8). That matches stock's
 limit of 8 notes per track, so one track never steals from itself beyond its
 own voices. Voice memory is 88 bytes per voice, plus stock's one spare.
 
-CPU, from the SDK's host-timed estimate at Daath's heaviest setting (SDK
-commit `4a8abf4`, seven runs on a 2-core Xeon at 2.1 GHz, 29 October 2026):
+On an OP-XY, the first profiling build dropped single 64-sample blocks (about
+17% of them) while notes were held: the voice was too heavy for the device.
+The render now runs in short passes (one per saw, one for the sub, one for the
+effects) so each pass fits the Blackfin's eight data registers instead of
+spilling its state every sample. The sound is bit-for-bit unchanged.
 
-| Reading | Blackfin instructions per voice block |
-| --- | --- |
-| Median | about 17,300 |
-| Range | about 13,600 to 23,700 (timing noise) |
-| SDK aim | at most 15,000 |
-| For scale | 2op FM about 14,000, Macro Osc about 9,000 |
+| Reading | Before | After |
+| --- | --- | --- |
+| Compiled Blackfin render loops, instructions per sample (pinned GCC 8, common path) | about 190 | about 130 |
+| SDK host-timed estimate, instructions per voice block (median of seven runs) | about 17,300 | about 17,800 |
 
-This is an estimate from host timing, **not a measurement on the OP-XY**.
-Fewer voices limit how many run at once; they do not change the cost of each
-voice. The hardware readout from the SDK's
+The host estimate times the code on a desktop processor, which has plenty of
+registers, so it barely sees this change; the compiled Blackfin count is the
+better guide. SDK aim: at most 15,000 per voice block; for scale, 2op FM is
+about 14,000 and Macro Osc about 9,000 (SDK commit `4a8abf4`, 29 October 2026).
+
+Neither figure is a **measurement on the OP-XY**. Fewer voices limit how many
+run at once; they do not change the cost of each voice. The hardware readout
+from the SDK's
 [profiling guide](https://github.com/etcetc000/open-xy/blob/staging/docs/profiling.md)
 is still pending.
 
