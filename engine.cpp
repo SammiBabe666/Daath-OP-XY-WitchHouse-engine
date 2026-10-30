@@ -173,53 +173,99 @@ inline void initialize(Voice& voice, Shared&, u32 owner) {
 inline void start(Voice&, Shared&, u32) {}
 inline void destroy(Voice&, Shared&, u32) {}
 
+namespace {
+// The Blackfin has eight data registers. Rendering in short passes, one per
+// oscillator and one for the effects, keeps each pass's state in registers
+// instead of spilling it every sample. Integer sums are exact, so the order
+// of the passes does not change a single output bit.
+
+// One polyBLEP saw across the block, written to or added into out. The
+// residual is applied just before and just after each wrap, using the
+// position within one sample step.
+template <bool accumulate>
+inline void saw_pass(u32& phase_state, opxy::Pitch pitch, u32 delta, u32 shift, u32 reciprocal,
+                     i32* __restrict out) {
+    u32 phase = phase_state;
+    for (unsigned i = 0; i != opxy::block_frames; ++i) {
+        const u32 increment = pitch[i] + delta;
+        i32 value = saw(phase);
+        // Within one step either side of the wrap: one branch, rarely taken.
+        if (phase + increment < increment * 2u) {
+            if (phase < increment) value += residual(((phase >> shift) * reciprocal) >> 16);
+            else value -= residual((((0u - phase) >> shift) * reciprocal) >> 16);
+        }
+        phase += increment;
+        if (accumulate) out[i] += value;
+        else out[i] = value;
+    }
+    phase_state = phase;
+}
+} // namespace
+
 inline void render(Voice& voice, Shared&, u32, opxy::Output output,
                    opxy::Parameters parameters, opxy::Pitch pitch) {
     Block b;
     prepare(voice, parameters, pitch[0], b);
-    for (unsigned i = 0; i != opxy::block_frames; ++i) {
-        // Swarm: polyBLEP saws. The residual is applied just before and just
-        // after each wrap, using the position within one sample step.
-        i32 centre = 0, ghosts = 0;
-        for (u32 k = 0; k < saw_count; ++k) {
-            const u32 increment = pitch[i] + static_cast<u32>(b.delta[k]);
-            const u32 phase = voice.phase[k];
-            i32 value = saw(phase);
-            // Within one step either side of the wrap: one branch, rarely taken.
-            if (phase + increment < increment * 2u) {
-                if (phase < increment) value += residual(((phase >> b.shift[k]) * b.reciprocal[k]) >> 16);
-                else value -= residual((((0u - phase) >> b.shift[k]) * b.reciprocal[k]) >> 16);
-            }
-            voice.phase[k] = phase + increment;
-            if (k == 0) centre = value; else ghosts += value;
+
+    // Swarm: the centre saw goes to the output buffer, the four ghosts to
+    // their own. At Swarm 0 the ghosts are silent: they only advance.
+    saw_pass<false>(voice.phase[0], pitch, static_cast<u32>(b.delta[0]), b.shift[0], b.reciprocal[0], output);
+    i32 ghosts[opxy::block_frames];
+    if (b.ghost_gain != 0) {
+        saw_pass<false>(voice.phase[1], pitch, static_cast<u32>(b.delta[1]), b.shift[1], b.reciprocal[1], ghosts);
+        for (u32 k = 2; k < saw_count; ++k)
+            saw_pass<true>(voice.phase[k], pitch, static_cast<u32>(b.delta[k]), b.shift[k], b.reciprocal[k], ghosts);
+        const i32 ghost_gain = b.ghost_gain;
+        for (unsigned i = 0; i != opxy::block_frames; ++i) output[i] += multiply(ghosts[i], ghost_gain);
+    } else {
+        u32 total = 0;
+        for (unsigned i = 0; i != opxy::block_frames; ++i) total += pitch[i];
+        for (u32 k = 1; k < saw_count; ++k)
+            voice.phase[k] += total + static_cast<u32>(b.delta[k]) * opxy::block_frames;
+    }
+
+    // Grave: a sine an octave under the warped centre pitch, added to the centre.
+    {
+        u32 sub_phase = voice.sub_phase;
+        const u32 delta = static_cast<u32>(b.delta[0]);
+        const i32 grave = b.grave_gain;
+        for (unsigned i = 0; i != opxy::block_frames; ++i) {
+            output[i] += multiply(sine(sub_phase), grave) * 4;
+            sub_phase += (pitch[i] + delta) >> 1;
         }
+        voice.sub_phase = sub_phase;
+    }
 
-        // Grave: a sine an octave under the warped centre pitch.
-        const i32 sub = sine(voice.sub_phase);
-        voice.sub_phase += (pitch[i] + static_cast<u32>(b.delta[0])) >> 1;
-
-        const i32 mixed = centre + multiply(ghosts, b.ghost_gain) + multiply(sub, b.grave_gain) * 4;
-        const i32 driven = hex(mixed, b.gain, b.bias, b.x_limit);
+    // Hex, the DC blocker, Murk and Rot, on local copies of their state.
+    i32 dc_in = voice.dc_in, dc_out = voice.dc_out, low1 = voice.low1, low2 = voice.low2, held = voice.held;
+    u32 hold_phase = voice.hold_phase;
+    for (unsigned i = 0; i != opxy::block_frames; ++i) {
+        const i32 driven = hex(output[i], b.gain, b.bias, b.x_limit);
 
         // DC blocker (pole 1 - 1/512, about 14 Hz). Its input is at most 1/2, so
         // the guard at 1 only catches pathological overshoot.
-        const i32 blocked = clamp(driven - voice.dc_in + voice.dc_out - (voice.dc_out >> 9), -one, one);
-        voice.dc_in = driven;
-        voice.dc_out = blocked;
+        const i32 blocked = clamp(driven - dc_in + dc_out - (dc_out >> 9), -one, one);
+        dc_in = driven;
+        dc_out = blocked;
 
         // Murk: two one-pole lowpasses; never overshoots its input.
-        voice.low1 += multiply(blocked - voice.low1, b.murk);
-        voice.low2 += multiply(voice.low1 - voice.low2, b.murk);
+        low1 += multiply(blocked - low1, b.murk);
+        low2 += multiply(low1 - low2, b.murk);
 
         // Rot: sample-and-hold, then bit loss on the held sample.
         // Branchless: the clock carries into bit 16 exactly when a new sample is taken.
-        voice.hold_phase += b.hold_step;
-        const u32 take = 0u - (voice.hold_phase >> 16);
-        voice.hold_phase &= 65535u;
-        voice.held = static_cast<i32>((static_cast<u32>(voice.held) & ~take) |
-                                      (static_cast<u32>(voice.low2) & b.rot_mask & take));
-        output[i] = clamp(multiply(voice.held, b.level) * 4, -output_peak, output_peak);
+        hold_phase += b.hold_step;
+        const u32 take = 0u - (hold_phase >> 16);
+        hold_phase &= 65535u;
+        held = static_cast<i32>((static_cast<u32>(held) & ~take) | (static_cast<u32>(low2) & b.rot_mask & take));
+        output[i] = clamp(multiply(held, b.level) * 4, -output_peak, output_peak);
     }
+    voice.dc_in = dc_in;
+    voice.dc_out = dc_out;
+    voice.low1 = low1;
+    voice.low2 = low2;
+    voice.held = held;
+    voice.hold_phase = hold_phase;
 }
 
 } // namespace daath

@@ -8,7 +8,7 @@ machine keeps the SDK 1.4 format and its engine and page numbers.
 
 - `sdk.py test --machine .`: definition, artwork, preview build and the
   SDK's ABI, fixed-memory, input-ownership, declared-peak, voice-lifecycle and
-  drawing smoke checks, plus the four test files below.
+  drawing smoke checks, plus the five test files below.
 - All tests also pass under GCC's UndefinedBehaviorSanitizer and
   AddressSanitizer with `-Wall -Wextra -Werror` (run in CI).
 - The browser workbench plays audio and draws every control's state without
@@ -18,6 +18,7 @@ machine keeps the SDK 1.4 format and its engine and page numbers.
 | --- | --- |
 | `tests/sound.cpp` | All 64 control corners at seven pitches from MIDI 12 to 120, with restarts: bounded by the declared peak and audible. Random hostile control words and pitches for 4,000 blocks |
 | `tests/presets.cpp` | The six presets with eight voices, stolen voices, a Hex sweep and pitch bends: bounded, audible (RMS above 0.08 of peak) and free of DC |
+| `tests/render.cpp` | Bit-exact output: a fixed workload (random and extreme controls, Swarm 0, pitch steps and bends) hashes to the value recorded from the original single-loop render |
 | `tests/tuning.cpp` | The saw fundamental is the played pitch; Grave adds exactly the octave below; Swarm 0 is one saw for any voice; a tiny Rot barely changes the signal; Murk only darkens; Hex leaves no DC |
 | `tests/display.cpp` | Every frame valid through 20,000 random steps; the four outlines keep 64 distinct points and enclose area; points never change without a new key; reset and track changes never fabricate a note; idle and reduced-motion screens stay still; a 20-minute hold at full Wow stays valid |
 
@@ -36,10 +37,22 @@ Offline measurements (host render, steady tones):
 The SDK's host-timed estimate, which is not a device measurement, was about
 17,300 Blackfin instructions per voice block at the heaviest setting (median of
 seven runs; range 13,600 to 23,700 with timing noise) on SDK commit `4a8abf4`.
-The aim is 15,000. The inner loop has six Q31 multiplies per sample, table
+The aim is 15,000. The audio loops have six Q31 multiplies per sample, table
 lookups for the sub and soft clip, and no division; per-block work computes the
 reciprocals, the filter coefficient and the level trim. `voiceCapacity` is 8,
 stock's per-track note limit.
+
+The first profiling build dropped single audio blocks on an OP-XY while notes
+were held (a phone recording: 1.45 ms gaps, about 17% of blocks). One sample
+loop carried about 13 state values and as many coefficients, far more than the
+Blackfin's eight data registers, so the compiled loop spilled and reloaded
+state every sample (about 190 instructions per sample on the common path). The
+render now runs one pass per saw, one for the sub and one for the effects,
+about 130 instructions per sample with the pinned GCC 8. At Swarm 0 the ghost
+saws only advance their phases. The output is bit-for-bit identical to the
+previous render over 18,000 blocks covering random and extreme controls,
+Swarm 0, pitch bends and pitch steps. The host estimate (median about 17,800
+after, 17,300 before) does not see register pressure.
 
 ## Review notes
 
@@ -54,8 +67,9 @@ stock's per-track note limit.
   distinct points and no fill, explicit-font text slots without `x`/`y`, and
   sixteen `#RRGGBB` palette entries.
 
-**Pending:** a native compile on the SDK's Windows host (the CI `blackfin`
-job) and a hardware CPU readout per the SDK's
+The CI `blackfin` job compiles natively with the pinned tools, and a
+profiling build has run on an OP-XY.
+
+**Pending:** a hardware CPU readout of this render per the SDK's
 [profiling guide](https://github.com/etcetc000/open-xy/blob/staging/docs/profiling.md).
-Neither has been run from this repository yet; host checks do not establish
-device timings, polyphony limits or recovery.
+Host checks do not establish device timings, polyphony limits or recovery.
