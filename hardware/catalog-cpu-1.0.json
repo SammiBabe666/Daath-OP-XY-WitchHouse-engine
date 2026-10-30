@@ -1,0 +1,16 @@
+{
+  "cpu": {
+    "benchmark": "opxy-synth-c8-sweep-v1",
+    "commit": "ea60d4a7b1b67e4f00ac0ff8641ad28bbe5236c7",
+    "firmware_sha256": "91698801824a9f4322fa0b95424230eecb9b284494b5faf3b0e62327c45384e2",
+    "runs": 3,
+    "block_percent": 3.460746,
+    "midpoint_percent": 3.405814,
+    "combined_percent": 2.661173,
+    "worst_setting": {
+      "control": 4,
+      "label": "Rot",
+      "value": 536870911
+    }
+  }
+}

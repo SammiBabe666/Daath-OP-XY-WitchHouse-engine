@@ -67,9 +67,13 @@ after, 17,300 before) does not see register pressure.
   distinct points and no fill, explicit-font text slots without `x`/`y`, and
   sixteen `#RRGGBB` palette entries.
 
-The CI `blackfin` job compiles natively with the pinned tools, and a
-profiling build has run on an OP-XY.
+The CI `blackfin` job compiles natively with the pinned tools.
 
-**Pending:** a hardware CPU readout of this render per the SDK's
-[profiling guide](https://github.com/etcetc000/open-xy/blob/staging/docs/profiling.md).
-Host checks do not establish device timings, polyphony limits or recovery.
+**Hardware CPU (release 1.0, commit `ea60d4a`):** 3.461% of the stock 580,352-cycle
+block budget per voice at its heaviest setting (Rot 25%), the median of three
+captures of the full control sweep on an OP-XY running OS 1.2.1; within the
+recommended 3.5%. See [hardware/cpu-1.0.md](hardware/cpu-1.0.md). The
+captures came from a browser port of the SDK collector (Web MIDI, same frames
+and checks; its SHA-256 is recorded in each capture) and were accepted by
+`sdk.py profile report`. Host checks do not establish polyphony limits or
+recovery.

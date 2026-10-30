@@ -112,27 +112,27 @@ Daath plays **8 voices** at once (`voiceCapacity` 8). That matches stock's
 limit of 8 notes per track, so one track never steals from itself beyond its
 own voices. Voice memory is 88 bytes per voice, plus stock's one spare.
 
-On an OP-XY, the first profiling build dropped single 64-sample blocks (about
-17% of them) while notes were held: the voice was too heavy for the device.
-The render now runs in short passes (one per saw, one for the sub, one for the
-effects) so each pass fits the Blackfin's eight data registers instead of
-spilling its state every sample. The sound is bit-for-bit unchanged.
+**Measured on an OP-XY (release 1.0):** at most **3.461%** of the 1.45 ms audio
+block per voice, within the SDK's recommended 3.5%. That is the heaviest of 56
+runs (each control through nine positions, the stock workload and every
+control at its heaviest), each the median of three captures; the heaviest
+setting is Rot 25%. The stock workload reads 3.406%, and every control at its
+heaviest 2.661%. Full table: [hardware/cpu-1.0.md](hardware/cpu-1.0.md);
+the catalog record is [hardware/catalog-cpu-1.0.json](hardware/catalog-cpu-1.0.json).
+Raw captures stay private: they hold the device's identity.
 
-| Reading | Before | After |
+How it got there, each step measured or counted on the device's processor:
+
+| Version | What changed | Per voice on the OP-XY |
 | --- | --- | --- |
-| Compiled Blackfin render loops, instructions per sample (pinned GCC 8, common path) | about 190 | about 130 |
-| SDK host-timed estimate, instructions per voice block (median of seven runs) | about 17,300 | about 17,800 |
+| First build | One sample loop with 13 state values for 8 data registers | dropped about 17% of audio blocks while notes were held |
+| `cb66ed4` | One pass per oscillator and one for the effects (about 190 → 130 instructions per sample) | 4.33% at its heaviest (Hex 37.5%) |
+| `ea60d4a`, release 1.0 | Hex and the sub computed instead of read from tables (the Hex table missed the data cache), passes merged | **3.461%** at its heaviest (Rot 25%) |
 
-The host estimate times the code on a desktop processor, which has plenty of
-registers, so it barely sees this change; the compiled Blackfin count is the
-better guide. SDK aim: at most 15,000 per voice block; for scale, 2op FM is
-about 14,000 and Macro Osc about 9,000 (SDK commit `4a8abf4`, 29 October 2026).
-
-Neither figure is a **measurement on the OP-XY**. Fewer voices limit how many
-run at once; they do not change the cost of each voice. The hardware readout
-from the SDK's
-[profiling guide](https://github.com/etcetc000/open-xy/blob/staging/docs/profiling.md)
-is still pending.
+The SDK's host-timed estimate (about 17,000 to 26,000 instructions per voice
+block, depending on timing noise) times a desktop processor and does not see
+the OP-XY's registers or cache. Fewer voices limit how many run at once; they
+do not change the cost of each voice.
 
 ## Licence
 
