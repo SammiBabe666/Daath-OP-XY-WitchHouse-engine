@@ -1,7 +1,8 @@
 // Daath's exact output: a fixed workload of random and extreme controls,
 // Swarm 0, pitch steps and bends, hashed. Integer DSP makes it bit-exact on
-// every compiler; the hash was recorded from the single-loop render that the
-// pass-per-oscillator render replaced, so any change to the sound fails here.
+// every compiler. Recorded when Hex and the sub sine became computed instead
+// of table lookups (inaudible: about -60 dB RMS with Wow and Rot off); any
+// further change to the sound fails here until it is recorded again.
 #include "../engine.cpp"
 #include "check.h"
 
@@ -37,6 +38,6 @@ int main() {
             }
         }
     }
-    require(hash == 0xfaefc73du, "render output changed");
+    require(hash == 0x45a1c8ddu, "render output changed");
     return 0;
 }

@@ -2,7 +2,7 @@
 
 This repository holds Daath (`daath`), a witch house bass synth. The machine is at the repository root.
 Keep the `daath` ID, the parameter order (swarm, grave, hex, murk, rot, wow) and their mappings:
-saved sounds depend on them. After changing presets in definition.json, tables or artwork, rerun
+saved sounds depend on them. After changing presets in definition.json or artwork, rerun
 the matching script in `generators/`. CI pins the SDK commit in `.github/workflows/machine.yml`.
 Read README.md and use the [Open-XY SDK](https://github.com/etcetc000/open-xy)
 on `staging`, normally checked out beside this repository as `../open-xy`.

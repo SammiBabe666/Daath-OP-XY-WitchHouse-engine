@@ -33,7 +33,6 @@ jobs:
       - name: Generated files are current
         working-directory: machine
         run: |
-          python generators/tables.py > "$RUNNER_TEMP/tables.h" && diff "$RUNNER_TEMP/tables.h" tables.h
           python generators/presets.py . && python generators/panel.py . && git diff --exit-code
       - name: Machine source, preview and sound checks
         run: python sdk/sdk.py test --machine machine --cxx clang++ --host-cxx g++

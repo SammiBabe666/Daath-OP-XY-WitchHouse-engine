@@ -76,26 +76,26 @@ firmware's layout may give it others.
 | --- | --- |
 | [definition.json](definition.json) | Controls, presets, resources and drawing budget |
 | [core.h](core.h), [engine.cpp](engine.cpp) | Voice state and the integer DSP |
-| [tables.h](tables.h) | Sub sine and Hex soft-clip tables (generated) |
 | [display.h](display.h), [display.cpp](display.cpp), [panel.svg.fragment](panel.svg.fragment) | The grimoire and two-row header |
 | [presets/](presets) | The six device presets (generated from definition.json) |
-| [generators/](generators) | Scripts that regenerate tables, presets and artwork |
+| [generators/](generators) | Scripts that regenerate presets and artwork |
 | [tests/](tests) | Host checks: bounds, presets, tuning, controls and display |
 | [AUDIT.md](AUDIT.md) | DSP design, validation and what remains pending |
 
 ## Sound model
 
 Everything is fixed point: Q27 signals with headroom, Q31 coefficients, no
-floating point, no 64-bit arithmetic and no per-sample division.
+floating point, no 64-bit arithmetic, no per-sample division and no lookup
+tables.
 
 - **Swarm**: five polyBLEP saws. Edge positions use a reciprocal computed once
   per block per saw. Ghost offsets are uneven (+1, −1, +0.43, −0.37 of the
   spread), so the beating never locks into a pulse. The ghosts fade in over
   the first quarter of the knob, and the mix is normalised by 1/(1 + 2g).
-- **Grave**: a 1024-point table sine at half the centre saw's increment, so it
-  follows Wow and bends exactly.
-- **Hex**: gain on a squared curve with up to a quarter of bias, through a
-  4096-point soft-clip table x − 4x³/27 at half scale. A DC blocker follows
+- **Grave**: a computed sine (a refined parabola, within 0.1%; harmonics below
+  −63 dB) at half the centre saw's increment, so it follows Wow and bends exactly.
+- **Hex**: gain on a squared curve with up to a quarter of bias, through the
+  soft clip x − 4x³/27 at half scale, computed with two multiplies. A DC blocker follows
   (about 14 Hz). Output trims by up to 5.6 dB over the first half of the knob.
 - **Murk**: two cascaded one-poles. The coefficient follows the played
   increment, so the tone is the same in every octave.
