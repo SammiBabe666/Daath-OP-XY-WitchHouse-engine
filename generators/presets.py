@@ -8,7 +8,7 @@ TEMPLATE = json.loads('{"engine": {"bendrange": 8191, "highpass": 0, "modulation
 d = json.load(open(os.path.join(root, 'definition.json')))
 ids = [p['id'] for p in d['parameters']]
 # Bass envelopes: instant attack, full sustain; longer release where the sound drones.
-release = {'Sigil': 6000, 'Crypt': 9000, 'Coven': 9000, 'Screwed': 12000, 'Hexed': 5000, 'Rotten': 6000}
+release = {'Sigil': 6000, 'Crypt': 9000, 'Coven': 9000, 'Screwed': 12000, 'Hexed': 5000, 'Rotten': 6000, 'Seance': 9000}
 names = {'Sigil': 'default'}
 os.makedirs(os.path.join(root, 'presets'), exist_ok=True)
 for name, values in d['presets'].items():

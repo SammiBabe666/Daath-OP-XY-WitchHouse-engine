@@ -16,10 +16,10 @@ machine keeps the SDK 1.4 format and its engine and page numbers.
 
 | Test | Covers |
 | --- | --- |
-| `tests/sound.cpp` | All 64 control corners at seven pitches from MIDI 12 to 120, with restarts: bounded by the declared peak and audible. Random hostile control words and pitches for 4,000 blocks |
-| `tests/presets.cpp` | The six presets with eight voices, stolen voices, a Hex sweep and pitch bends: bounded, audible (RMS above 0.08 of peak) and free of DC |
+| `tests/sound.cpp` | All 256 control corners at seven pitches from MIDI 12 to 120, with restarts: bounded by the declared peak and audible. Random hostile control words and pitches for 4,000 blocks |
+| `tests/presets.cpp` | The seven presets with eight voices, stolen voices, a Hex sweep and pitch bends: bounded, audible (RMS above 0.08 of peak) and free of DC |
 | `tests/render.cpp` | Bit-exact output: a fixed workload (random and extreme controls, Swarm 0, pitch steps and bends) hashes to the value recorded from the original single-loop render |
-| `tests/tuning.cpp` | The saw fundamental is the played pitch; Grave adds exactly the octave below; Swarm 0 is one saw for any voice; a tiny Rot barely changes the signal; Murk only darkens; Hex leaves no DC |
+| `tests/tuning.cpp` | The saw fundamental is the played pitch; Grave adds exactly the octave below; Swarm 0 is one saw for any voice; Swarm's upper half adds the fifth and the octave below; Amount 0 makes Speed inaudible and Amount moves the cutoff; a tiny Rot barely changes the signal; Murk only darkens; Hex leaves no DC |
 | `tests/display.cpp` | Every frame valid through 20,000 random steps; the four outlines keep 64 distinct points and enclose area; points never change without a new key; reset and track changes never fabricate a note; idle and reduced-motion screens stay still; a 20-minute hold at full Wow stays valid |
 
 Offline measurements (host render, steady tones):

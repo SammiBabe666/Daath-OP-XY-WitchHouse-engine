@@ -6,6 +6,7 @@
 //   Murk   the parchment darkens until the runes glow white on black pages
 //   Rot    runes crumble and fall out, the page edges tear
 //   Wow    while a note is held the sigil sways and the rune lines waver
+//   Speed, Amount  while a note is held the inner circle breathes with the Murk LFO
 //
 // Notes answer on screen: each note flashes the sigil and throws a halo; holding
 // a note turns the sigil slowly. An idle screen stays still.
@@ -41,6 +42,40 @@ const i32 candle_x[2] = {22 * unit, 458 * unit};
 const i32 candle_top = 147 * unit;
 
 inline i32 fraction(i32 value) { return clamp(value, 0, opxy::q31::maximum) >> 21; }  // Q31 -> 0..1023
+
+inline void cents(char* out, u32 capacity, i32 value, u32 range);
+
+// 2^(k/16) for k = 0..15, Q15: Speed's exponential turn.
+const u32 octave_q15[16] = {32768, 34219, 35734, 37316, 38968, 40693, 42495, 44376,
+                            46341, 48393, 50535, 52773, 55109, 57549, 60097, 62757};
+
+// Speed in tenths of a hertz, 1..100: 0.1 Hz times 100^value, as engine.cpp maps it.
+inline u32 speed_tenths(i32 value) {
+    const u32 steps = static_cast<u32>(clamp(value, 0, opxy::q31::maximum) >> 15) * 1701u >> 20;  // 0..106 sixteenths
+    return ((octave_q15[steps & 15] << (steps >> 4)) + 16384u) >> 15;
+}
+
+// Speed caption in hertz: "0.5hz", "2.5hz", "10hz".
+inline void hertz(char* out, u32 capacity, u32 tenths) {
+    char text[6];
+    u32 at = 0;
+    if (tenths >= 100) { text[at++] = '1'; text[at++] = '0'; }
+    else { text[at++] = static_cast<char>('0' + tenths / 10); text[at++] = '.'; text[at++] = static_cast<char>('0' + tenths % 10); }
+    text[at++] = 'h'; text[at++] = 'z'; text[at] = 0;
+    copy(out, capacity, text);
+}
+
+// Swarm caption: cents over the lower half ("24c"), then the newest interval
+// of the power stack: "40c", "5th", "-8va", "+8va", "-5th".
+inline void swarm_caption(char* out, u32 capacity, i32 value) {
+    const i32 v = clamp(value, 0, opxy::q31::maximum);
+    if (v < 0x40000000) { cents(out, capacity, v * 2, 40); return; }
+    static const char* const stack[5] = {"40c", "5th", "-8va", "+8va", "-5th"};
+    const u32 u = static_cast<u32>(v - 0x40000000) * 2u;             // 0..1 over the upper half, Q31
+    u32 n = 0;
+    while (n < 4 && u >= ((2u * n + 1u) << 28)) ++n;
+    copy(out, capacity, stack[n]);
+}
 
 // Lowercase cents caption: "24c".
 inline void cents(char* out, u32 capacity, i32 value, u32 range) {
@@ -121,22 +156,26 @@ inline void display_reset(DisplayState& state) {
     state.pulse_age = expired;
     state.held_time = 0;
     state.angle = 0;
+    state.lfo = 0;
 }
 
 // Only screen work: no audio reads, device calls, allocation or wall-clock API.
 inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& frame) {
     // Header: two fixed rows; Hex and Murk are shared by both pages.
-    const char* const titles[8] = {"Swarm", "Grave", "Hex", "Murk", "Rot", "Wow", "", ""};
+    const char* const titles[8] = {"Swarm", "Grave", "Hex", "Murk", "Rot", "Wow", "Speed", "Amount"};
     char values[8][header_capacity] = {};
-    cents(values[0], header_capacity, input.slots[0], 40);
+    swarm_caption(values[0], header_capacity, input.slots[0]);
     for (u32 i = 1; i < 5; ++i) header_amount(values[i], header_capacity, input.slots[i]);
     cents(values[5], header_capacity, input.slots[5], 45);
-    const opxy::u8 pages[2][4] = {{0, 1, 2, 3}, {4, 5, 2, 3}};
+    hertz(values[6], header_capacity, speed_tenths(input.slots[6]));
+    header_amount(values[7], header_capacity, input.slots[7]);
+    const opxy::u8 pages[2][4] = {{0, 1, 2, 3}, {4, 5, 6, 7}};
     page_header(state.header, input, frame, titles, values, bar_node, pages);
 
     const i32 swarm = fraction(input.slots[0]), grave = fraction(input.slots[1]);
     const i32 hex = fraction(input.slots[2]), murk = fraction(input.slots[3]);
     const i32 rot = fraction(input.slots[4]), wow = fraction(input.slots[5]);
+    const i32 amount = fraction(input.slots[7]);
     const bool still = input.reduced_motion != 0;
     const i32 elapsed = clamp(input.elapsed, 0, 102);   // late frames advance at most 0.1 s
 
@@ -155,6 +194,7 @@ inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& 
     if (held && !still) {
         state.held_time = (state.held_time + elapsed) & 0xfffff;
         state.angle = (state.angle + (elapsed * 60 >> 10)) % 3600;  // 6 degrees a second
+        state.lfo = (state.lfo + (elapsed * static_cast<i32>(speed_tenths(input.slots[6])) * 360 >> 10)) % 3600;  // 0.1 Hz = 360 tenths a second
     }
     const i32 pulse = clamp(1024 - state.pulse_age * 5 / 2, 0, 1024);  // fades in 0.4 s
     const i32 time = still ? 0 : state.held_time;
@@ -209,7 +249,9 @@ inline void display(DisplayState& state, const opxy::draw::Input& input, Frame& 
     draw_ring(frame.paths[ring_node], hex, pulse);
     place(frame, ring_node, sigil_x, sigil_y, unit, pulse > 512 ? glow : hex > 512 || page_shade < 4 ? bright : sigil, stroke);
     turn(frame, ring_node, rotation(-turn_tenths / 2));
-    place(frame, inner_circle, sigil_x, sigil_y, unit + (pulse >> 4), pulse > 256 || page_shade < 4 ? bright : sigil, stroke);
+    // Speed and Amount: the inner circle breathes with the Murk LFO, up to 15%.
+    const i32 breath = still || !held ? 0 : (amount * 150 >> 10) * sine(state.lfo) >> 10;
+    place(frame, inner_circle, sigil_x, sigil_y, unit + (pulse >> 4) + breath, pulse > 256 || page_shade < 4 ? bright : sigil, stroke);
     place(frame, star_centre, sigil_x, sigil_y, unit,
           pulse > 512 ? glow : pulse > 128 || page_shade < 4 ? bright : sigil, stroke);
     turn(frame, star_centre, rotation(turn_tenths));

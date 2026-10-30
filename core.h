@@ -6,7 +6,7 @@ using opxy::i32;
 using opxy::u32;
 
 const u32 saw_count = 5;
-const u32 control_count = 6;
+const u32 control_count = 8;
 
 // Only sound state. The SDK owns firmware headers, slot padding and allocation.
 struct Voice {
@@ -18,6 +18,7 @@ struct Voice {
     u32 hold_phase;         // Rot: sample-and-hold clock, Q16
     i32 held;               // Rot: the held sample
     i32 control[control_count];  // block-smoothed controls, Q31
+    u32 lfo_phase;          // Murk LFO, restarted on each note
     u32 seed;               // per-voice phase scatter
     u32 initialized;
 };

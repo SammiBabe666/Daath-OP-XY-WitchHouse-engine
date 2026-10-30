@@ -23,11 +23,23 @@ const i32 q31_max = 0x7fffffff;
 const u32 octave_q15[17] = {32768, 34219, 35734, 37316, 38968, 40693, 42495, 44376,
                             46341, 48393, 50535, 52773, 55109, 57549, 60097, 62757, 65536};
 
-// Swarm spread at full turn: the outer ghosts sit 40 cents away. Q31 ratio
+// Swarm, lower half: the outer ghosts detune up to 40 cents. Q31 ratio
 // offset 2^(40/1200) - 1. Ghost positions are uneven so the beating never
 // locks into a regular pulse.
 const i32 swarm_spread = 50195051;
 const i32 ghost_offset[saw_count] = {0, q31_max, -q31_max, 923417968, -794568949};  // 0, +1, -1, +.43, -.37
+// Swarm, upper half: one ghost after another leaves the detune for a musical
+// interval, a power stack around the played note: a fifth up, an octave down,
+// an octave up, a fifth below. Q30 ratio offsets 2^(n/12) - 1. On an interval
+// a ghost keeps only a 6-cent detune, so the stack beats gently but stays in tune.
+const i32 interval_offset[saw_count] = {0, 535053150, -536870912, 1073741824, -269344337};
+const i32 interval_spread = 7455523;            // 2^(6/1200) - 1, Q31
+const u32 nyquist_step = 0x7c000000u;           // an interval above about 21 kHz stays detuned
+
+// Murk LFO: Speed from 0.1 to 10 Hz on an exponential turn; Amount swings the
+// cutoff up to three octaves either way (48 sixteenths).
+const u32 lfo_top = 951u;                       // 10 Hz as a phase step per block, >> 16
+const u32 lfo_octaves = 1701u;                  // log2(100) * 256: the turn's 6.64 octaves
 
 // Wow at full turn: up to 45 cents of warp. Q31 ratio offset.
 const i32 wow_depth = 56551370;
@@ -104,12 +116,13 @@ inline void prepare(Voice& voice, const i32* parameters, u32 increment, Block& b
     voice.initialized = 1;
     const i32 swarm = voice.control[0], grave = voice.control[1], drive = voice.control[2];
     const i32 murk = voice.control[3], rot = voice.control[4], wow = voice.control[5];
+    const i32 speed = voice.control[6], amount = voice.control[7];
 
-    // Ghosts fade in over the first quarter of Swarm, so zero is one clean saw.
+    // Ghosts fade in over the first eighth of Swarm, so zero is one clean saw.
     // The swarm is normalised by 1 / (1 + 2g) and mixed at half; the sub comes
     // in at up to 0.55. Normalisation rides on the Hex gain, so the mix is
     // summed relative to the centre saw: one multiply fewer per sample.
-    b.ghost_gain = swarm >= 0x20000000 ? q31_max : swarm * 4;
+    b.ghost_gain = swarm >= 0x10000000 ? q31_max : swarm * 8;
     const u32 denominator = 32768u + 2u * static_cast<u32>(b.ghost_gain >> 16);  // (1 + 2g), Q15
     const i32 norm = static_cast<i32>((0x7fffffffu / denominator) << 14);         // 0.5 / (1 + 2g), Q31
     b.grave_gain = multiply(grave, static_cast<i32>(denominator * 18022u));       // 1.1 (1 + 2g) grave, Q29
@@ -132,9 +145,17 @@ inline void prepare(Voice& voice, const i32* parameters, u32 increment, Block& b
     const i32 bend = multiply(multiply(wow, wow_depth), lfo * 16);  // Q27 lfo -> Q31
     const i32 half = static_cast<i32>(increment >> 1);
     const i32 warp = multiply(half, bend) * 2;
-    const i32 spread = multiply(swarm, swarm_spread);
+    // Swarm: detune over the lower half; over the upper half ghost k moves to its
+    // interval once the turn passes the middle of its quarter.
+    const i32 spread = multiply(swarm >= 0x40000000 ? q31_max : swarm * 2, swarm_spread);
+    const i32 stack = swarm >= 0x40000000 ? (swarm - 0x40000000) * 2 : -1;  // 0..1 over the upper half, Q31
     for (u32 k = 0; k < saw_count; ++k) {
         b.delta[k] = warp + multiply(half, multiply(spread, ghost_offset[k])) * 2;
+        if (k && stack >= static_cast<i32>((2u * k - 1u) << 28) && increment < nyquist_step / 2u) {  // 1/8, 3/8, 5/8, 7/8
+            const i32 tuned = warp + multiply(half, interval_offset[k]) * 4 +
+                              multiply(half, multiply(interval_spread, ghost_offset[k])) * 2;
+            if (increment + static_cast<u32>(tuned) < nyquist_step) b.delta[k] = tuned;
+        }
         // A reciprocal per block replaces a division at every wrap.
         const u32 step = increment + static_cast<u32>(b.delta[k]);
         // The smallest shift that brings step under 2^16: the bit length of its top half.
@@ -151,7 +172,11 @@ inline void prepare(Voice& voice, const i32* parameters, u32 increment, Block& b
 
     // Murk: cutoff tracks the note, from 256 harmonics open (zero) down to the
     // fundamental itself (full). a ~ 2 pi fc / fs = pi * multiple * increment, Q31.
-    const u32 steps = static_cast<u32>(murk >> 15) * 128u >> 16;  // 0..128 sixteenths
+    // The LFO swings it: positive opens, and the swing stops at the ends.
+    voice.lfo_phase += lfo_top * octaves_down(static_cast<u32>((q31_max - speed) >> 15) * lfo_octaves >> 20);
+    const i32 swing = (multiply(sine(voice.lfo_phase), amount) >> 12) * 48 >> 15;  // Q27 x amount: -48..48
+    const i32 closed = static_cast<i32>(static_cast<u32>(murk >> 15) * 128u >> 16) - swing;
+    const u32 steps = static_cast<u32>(clamp(closed, 0, 128));       // 0..128 sixteenths
     const u32 k = (12864u * octaves_down(steps)) >> 12;          // pi * 256 harmonics * 256 (the >> 8), times 2^-(8 murk)
     const u32 scaled = (increment + static_cast<u32>(warp)) >> 8;
     const u32 ceiling = 0x7a000000u;                              // a <= 0.95
@@ -184,12 +209,14 @@ inline void initialize(Voice& voice, Shared&, u32 owner) {
     voice.low1 = voice.low2 = voice.dc_in = voice.dc_out = voice.held = 0;
     voice.hold_phase = 0;
     for (u32 c = 0; c < control_count; ++c) voice.control[c] = 0;
+    voice.lfo_phase = 0;
     voice.initialized = 0;
 }
 
 // Oscillators run free across notes so legato and mono lines never click;
-// the stock amplitude envelope shapes each attack.
-inline void start(Voice&, Shared&, u32) {}
+// the stock amplitude envelope shapes each attack. The Murk LFO restarts, so
+// every note wobbles the same way.
+inline void start(Voice& voice, Shared&, u32) { voice.lfo_phase = 0; }
 inline void destroy(Voice&, Shared&, u32) {}
 
 namespace {

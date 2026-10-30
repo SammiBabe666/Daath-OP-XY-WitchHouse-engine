@@ -16,30 +16,36 @@ every preset.
 
 ## Controls
 
-Pressing any encoder switches both rows. Hex and Murk sit on both pages.
+Pressing any encoder switches both rows.
 
 | Encoder | Page 1 | Page 2 |
 | --- | --- | --- |
-| Blue | **Swarm**: detune of four ghost saws around the centre saw, 0 to 40 cents. At 0 it is one clean saw | **Rot**: sample-and-hold from 44.1 kHz down to 1.4 kHz with up to 21 bits lost. 0 is a true bypass |
+| Blue | **Swarm**: the lower half detunes four ghost saws around the centre saw, 0 to 40 cents (0 is one clean saw). The upper half turns them into a power stack, one at a time: a fifth up, an octave down, an octave up, a fifth below, each kept 6 cents off for a gentle beat | **Rot**: sample-and-hold from 44.1 kHz down to 1.4 kHz with up to 21 bits lost. 0 is a true bypass |
 | Green | **Grave**: level of the sine one octave below | **Wow**: tape warp, two slow drifting rates, up to 45 cents |
-| White | **Hex**: asymmetric cubic drive, gain 1 to 15 with even-harmonic bias and level trim | same |
-| Orange | **Murk**: two-pole lowpass that tracks the note, from 256 harmonics down to the fundamental | same |
+| White | **Hex**: asymmetric cubic drive, gain 1 to 15 with even-harmonic bias and level trim | **Speed**: rate of Murk's own LFO, 0.1 to 10 Hz on an exponential turn |
+| Orange | **Murk**: two-pole lowpass that tracks the note, from 256 harmonics down to the fundamental | **Amount**: how far the LFO swings Murk's cutoff, up to three octaves either way. 0 is off |
 
-The header shows Swarm and Wow in cents and the rest as amounts 0 to 100.
-Colouring and degrading controls (Hex, Rot, Wow) default to off.
+The header shows Swarm in cents, then the newest interval of its stack
+(`5th`, `-8va`, `+8va`, `-5th`), Wow in cents, Speed in hertz and the rest as
+amounts 0 to 100. Colouring and degrading controls (Hex, Rot, Wow, Amount)
+default to off. The Murk LFO restarts on every note, so each note wobbles the
+same way; the OP-XY's own LFOs stay free for anything else.
 
 ## Presets
 
-Six presets ship with the engine and install with the builder.
+Seven presets ship with the engine and install with the builder. Release 1.0's
+six sound exactly as they did: Swarm's 0 to 40 cents now span its lower half,
+so their Swarm values are halved.
 
-| Preset | Swarm | Grave | Hex | Murk | Rot | Wow | Character |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **Sigil** (default) | 35 | 50 | 0 | 30 | 0 | 0 | The clean starting bass |
-| **Crypt** | 60 | 80 | 35 | 55 | 0 | 25 | Heavy, sub-led, slightly warped |
-| **Coven** | 85 | 45 | 25 | 40 | 15 | 35 | Wide choir of saws with a little grit |
-| **Screwed** | 50 | 70 | 20 | 65 | 0 | 70 | Dark, slowed and seasick |
-| **Hexed** | 45 | 60 | 85 | 35 | 0 | 10 | Driven and snarling |
-| **Rotten** | 40 | 60 | 40 | 30 | 80 | 20 | Crushed and decayed |
+| Preset | Swarm | Grave | Hex | Murk | Rot | Wow | Speed | Amount | Character |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Sigil** (default) | 17.5 | 50 | 0 | 30 | 0 | 0 | 0.5 Hz | 0 | The clean starting bass |
+| **Crypt** | 30 | 80 | 35 | 55 | 0 | 25 | 0.5 Hz | 0 | Heavy, sub-led, slightly warped |
+| **Coven** | 42.5 | 45 | 25 | 40 | 15 | 35 | 0.5 Hz | 0 | Wide choir of saws with a little grit |
+| **Screwed** | 25 | 70 | 20 | 65 | 0 | 70 | 0.5 Hz | 0 | Dark, slowed and seasick |
+| **Hexed** | 22.5 | 60 | 85 | 35 | 0 | 10 | 0.5 Hz | 0 | Driven and snarling |
+| **Rotten** | 20 | 60 | 40 | 30 | 80 | 20 | 0.5 Hz | 0 | Crushed and decayed |
+| **Seance** | 80 | 60 | 30 | 55 | 0 | 15 | 2 Hz | 50 | A fifth-and-octave stack wobbling through the murk |
 
 ## The grimoire
 
@@ -51,6 +57,7 @@ Six presets ship with the engine and install with the builder.
 | Murk | The pages darken to black; the runes and sigil then glow white |
 | Rot | Up to 55% of the runes crumble away, the rest shake loose, and the pages tear |
 | Wow | While a note is held, the sigil sways and the rune lines waver |
+| Speed, Amount | While a note is held, the sigil's inner circle breathes with the Murk LFO, up to 15% |
 
 Each note flashes the sigil and throws a halo; holding a note turns the sigil
 slowly. An idle screen stays still, and reduced motion shows the end state at
@@ -91,14 +98,19 @@ tables.
 - **Swarm**: five polyBLEP saws. Edge positions use a reciprocal computed once
   per block per saw. Ghost offsets are uneven (+1, −1, +0.43, −0.37 of the
   spread), so the beating never locks into a pulse. The ghosts fade in over
-  the first quarter of the knob, and the mix is normalised by 1/(1 + 2g).
+  the first eighth of the knob, and the mix is normalised by 1/(1 + 2g). Over
+  the upper half each ghost moves to its interval as the turn passes the middle
+  of its quarter (12.5%, 37.5%, 62.5%, 87.5% of the half); an interval that
+  would land above about 21 kHz stays detuned instead.
 - **Grave**: a computed sine (a refined parabola, within 0.1%; harmonics below
   −63 dB) at half the centre saw's increment, so it follows Wow and bends exactly.
 - **Hex**: gain on a squared curve with up to a quarter of bias, through the
   soft clip x − 4x³/27 at half scale, computed with two multiplies. A DC blocker follows
   (about 14 Hz). Output trims by up to 5.6 dB over the first half of the knob.
 - **Murk**: two cascaded one-poles. The coefficient follows the played
-  increment, so the tone is the same in every octave.
+  increment, so the tone is the same in every octave. Its LFO is a sine
+  updated once per block that moves the cutoff in sixteenth-octave steps,
+  clamped at fully open and fully closed.
 - **Rot**: a branchless sample-and-hold clock and a bit mask on the held sample.
 - **Wow**: two slow sines (about 0.43 and 1.1 Hz, varied per voice) bend every
   oscillator.
@@ -120,6 +132,10 @@ setting is Rot 25%. The stock workload reads 3.406%, and every control at its
 heaviest 2.661%. Full table: [hardware/cpu-1.0.md](hardware/cpu-1.0.md);
 the catalog record is [hardware/catalog-cpu-1.0.json](hardware/catalog-cpu-1.0.json).
 Raw captures stay private: they hold the device's identity.
+
+Swarm's power stack and the Murk LFO came after release 1.0. They add a few
+instructions per block, not per sample (the sample loops are unchanged), but
+a new revision needs its own hardware readout before a catalog update.
 
 How it got there, each step measured or counted on the device's processor:
 

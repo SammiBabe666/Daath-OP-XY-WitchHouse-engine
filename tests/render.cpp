@@ -1,8 +1,9 @@
 // Daath's exact output: a fixed workload of random and extreme controls,
 // Swarm 0, pitch steps and bends, hashed. Integer DSP makes it bit-exact on
-// every compiler. Recorded when Hex and the sub sine became computed instead
-// of table lookups (inaudible: about -60 dB RMS with Wow and Rot off); any
-// further change to the sound fails here until it is recorded again.
+// every compiler. Recorded when Swarm gained its power stack and Murk its LFO
+// (the workload sets all eight controls; release 1.0's presets render
+// bit-for-bit as before); any further change to the sound fails here until it
+// is recorded again.
 #include "../engine.cpp"
 #include "check.h"
 
@@ -38,6 +39,6 @@ int main() {
             }
         }
     }
-    require(hash == 0x45a1c8ddu, "render output changed");
+    require(hash == 0xc550d09du, "render output changed");
     return 0;
 }

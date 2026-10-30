@@ -14,5 +14,6 @@ struct DisplayState {
     opxy::i32 pulse_age;             // Q10 seconds since the last note, saturating
     opxy::i32 held_time;             // Q10 seconds accumulated while notes are held
     opxy::i32 angle;                 // sigil turn in tenths of a degree, while held
+    opxy::i32 lfo;                   // Murk LFO's phase in tenths of a degree, while held
 };
 }

@@ -9,8 +9,8 @@ int main() {
     opxy::u32 pitch[opxy::block_frames];
     opxy::i32 output[opxy::block_frames];
     const double notes[] = {12, 24, 36, 48, 72, 96, 120};
-    for (unsigned corner = 0; corner < 64; ++corner) {
-        for (unsigned c = 0; c < 6; ++c) parameters[c] = (corner >> c) & 1 ? 0x7fffffff : 0;
+    for (unsigned corner = 0; corner < 256; ++corner) {
+        for (unsigned c = 0; c < 8; ++c) parameters[c] = (corner >> c) & 1 ? 0x7fffffff : 0;
         for (unsigned n = 0; n < sizeof(notes) / sizeof(notes[0]); ++n) {
             std::memset(&voice, 0, sizeof(voice));
             daath::initialize(voice, shared, 1 + corner);

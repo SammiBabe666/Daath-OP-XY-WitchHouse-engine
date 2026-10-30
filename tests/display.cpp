@@ -38,7 +38,7 @@ int main() {
     input.elapsed = 17;
     input.track = 1;
     input.note_serial = 42;
-    for (unsigned i = 0; i < 6; ++i) input.slots[i] = 0x40000000;
+    for (unsigned i = 0; i < 8; ++i) input.slots[i] = 0x40000000;
     for (unsigned i = 0; i < 4; ++i) { input.parameters[i] = input.slots[i]; input.shown[i] = static_cast<opxy::u8>(i); }
 
     // First frame after reset: valid, no pulse even with a nonzero serial.
@@ -67,7 +67,7 @@ int main() {
         seed = seed * 1664525u + 1013904223u;
         input.elapsed = step % 13 == 0 ? -5 : step % 17 == 0 ? 100000 : 17;
         if (step % 3 == 0)
-            for (unsigned i = 0; i < 6; ++i)
+            for (unsigned i = 0; i < 8; ++i)
                 input.slots[i] = static_cast<opxy::i32>((seed ^ (i * 0x9e3779b9u)) & 0x7fffffffu);
         if (step % 19 == 0) ++input.note_serial;
         input.held_notes = (step / 40) & 1 ? 1 + (seed & 3) : 0;
@@ -90,7 +90,7 @@ int main() {
     input.reduced_motion = 0;
     input.held_notes = 1;
     input.elapsed = 102;
-    for (unsigned i = 0; i < 6; ++i) input.slots[i] = 0x7fffffff;
+    for (unsigned i = 0; i < 8; ++i) input.slots[i] = 0x7fffffff;
     for (unsigned step = 0; step < 12000; ++step) {
         display(state, input, frame);
         require(opxy::draw::valid(frame), "invalid frame during a long hold");

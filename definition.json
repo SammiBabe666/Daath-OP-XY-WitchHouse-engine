@@ -6,7 +6,7 @@
     {
       "id": "swarm",
       "label": "Swarm",
-      "default": 0.35,
+      "default": 0.175,
       "mapping": {
         "kind": "linear",
         "minimum": 0,
@@ -70,66 +70,112 @@
         "maximum": 1
       },
       "display": "percent"
+    },
+    {
+      "id": "speed",
+      "label": "Speed",
+      "control": 2,
+      "default": 0.35,
+      "mapping": {
+        "kind": "exponential",
+        "minimum": 0.1,
+        "maximum": 10
+      },
+      "display": "ratio"
+    },
+    {
+      "id": "amount",
+      "label": "Amount",
+      "control": 3,
+      "default": 0.0,
+      "mapping": {
+        "kind": "linear",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "display": "percent"
     }
   ],
   "presets": {
     "Sigil": {
-      "swarm": 0.35,
+      "swarm": 0.175,
       "grave": 0.5,
       "hex": 0.0,
       "murk": 0.3,
       "rot": 0.0,
-      "wow": 0.0
+      "wow": 0.0,
+      "speed": 0.35,
+      "amount": 0.0
     },
     "Crypt": {
-      "swarm": 0.6,
+      "swarm": 0.3,
       "grave": 0.8,
       "hex": 0.35,
       "murk": 0.55,
       "rot": 0.0,
-      "wow": 0.25
+      "wow": 0.25,
+      "speed": 0.35,
+      "amount": 0.0
     },
     "Coven": {
-      "swarm": 0.85,
+      "swarm": 0.425,
       "grave": 0.45,
       "hex": 0.25,
       "murk": 0.4,
       "rot": 0.15,
-      "wow": 0.35
+      "wow": 0.35,
+      "speed": 0.35,
+      "amount": 0.0
     },
     "Screwed": {
-      "swarm": 0.5,
+      "swarm": 0.25,
       "grave": 0.7,
       "hex": 0.2,
       "murk": 0.65,
       "rot": 0.0,
-      "wow": 0.7
+      "wow": 0.7,
+      "speed": 0.35,
+      "amount": 0.0
     },
     "Hexed": {
-      "swarm": 0.45,
+      "swarm": 0.225,
       "grave": 0.6,
       "hex": 0.85,
       "murk": 0.35,
       "rot": 0.0,
-      "wow": 0.1
+      "wow": 0.1,
+      "speed": 0.35,
+      "amount": 0.0
     },
     "Rotten": {
-      "swarm": 0.4,
+      "swarm": 0.2,
       "grave": 0.6,
       "hex": 0.4,
       "murk": 0.3,
       "rot": 0.8,
-      "wow": 0.2
+      "wow": 0.2,
+      "speed": 0.35,
+      "amount": 0.0
+    },
+    "Seance": {
+      "swarm": 0.8,
+      "grave": 0.6,
+      "hex": 0.3,
+      "murk": 0.55,
+      "rot": 0.0,
+      "wow": 0.15,
+      "speed": 0.6505,
+      "amount": 0.5
     }
   },
   "resources": {
-    "voiceBytes": 88,
+    "voiceBytes": 100,
     "voiceAlignment": 4,
     "voiceCapacity": 8,
     "sharedBytes": 0,
     "outputPeakQ31": 268435456,
     "display": {
-      "stateBytes": 44,
+      "stateBytes": 48,
       "stateAlignment": 4,
       "paths": 4,
       "points": 64,
